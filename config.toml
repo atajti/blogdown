@@ -1,4 +1,4 @@
-baseurl = "http://atajti.netlify.app/"
+baseurl = "https://atajti.netlify.app/"
 languageCode = "en-us"
 title = "A blogdown site"
 theme = "hugo-lithium"
