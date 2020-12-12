@@ -1,0 +1,94 @@
+---
+title: "Installing Home Assistant on Ubuntu14"
+author: "András Tajti"
+date: '2020-12-12'
+slug: "install-homeassistant-on-old-ubuntu"
+categories: []
+tags: ["Home Assistant", "python", "python 3.8", "build from source", "openssl"]
+---
+
+
+## ...well after support is ended
+
+I'd like to get deeper into home automation, so after watching
+hours of Youtube videos and reading several pages of blog posts,
+I decided to order a smart plug and smart light to test how can I
+fire up a basic constellation and what can I use these for.
+
+My initial plan was to buy a Rapsberry Pi as a hub, but I couldn't
+wait long enough, so decided to install Home Assistant onto my old
+Ubuntu 14.04. I tried to follow
+[this (actually great) guide](https://www.raspberryfield.life/2020/06/14/getting-started-with-home-assistant-core-installing/)
+but I ran into some problems.
+
+## Short list of pitfalls and realizations
+
+ - HA Core can be installed if python3.8 is installed.
+ - Python3.8 nac be built from source on this old OS, but
+   not installed via a simle `apt-get install` command.
+ - Instead of `make install` I should use `make altinstall`,
+   as the system uses python2, and I already had python3.4 installed
+ - Python 3.8 can be built beautifully and Venv can be
+   created without any problem, but `pip` will fail as
+   old - or no - ssl library is installed
+ - Installing openssl from source can be tricky, as it
+   will not find the right `lib` folder
+ - After `openssl version -v`  finally printed what I hoped for,
+   `make test` did not succeed as I did not updated the envirnment variables
+
+So after all these hurdles, here are my eventual steps for installing
+Home Assistant to Ubuntu 14.04, at 12 dec 2020:
+
+### 1.: check if you have the right openssl library - if not, install it
+
+You can run `openssl version -v` as a litmus test to find out if you need
+to bother with this. If it is `OpenSSL 1.1.1` or later (as
+[those are supported](https://www.openssl.org/source/) and required for building
+python with ssl), you're good to go to the next steps. If not, stay with me.
+
+#### Build it from source
+
+To install openssl from source to make python work,
+[this SO answer](https://stackoverflow.com/a/59472813) was almost perfect.
+Instead of the multiflagged config I ran it without any flags. Also, after
+installation, I had to create the `LD_LIBRARY_PATH` based on
+[this blog post](https://www.bswen.com/2018/11/others-Openssl-version-cause-error-when-loading-shared-libraries-libssl.so.1.1.html)
+instead of adding the `openssl` directory to path.
+to have it working after next login, I put the
+`LD_LIBRARY_PATH=/usr/local/openssl/lib` row at the end of my `~/.bashrc` file
+after creating the `lib` folder and copying every `lib*` file into it.
+
+So just:
+ - Download and extract the source into a folder named `openssl`,
+ - run `./config && make && sudo make install` in the folder,
+ - create a `lib` folder, abd copy every file into it which starts with `lib`,
+ - write `export LD_LIBRARY_PATH=/path/to/openssl/lib` to the end of `~/.bashrc`
+
+### 2.: Install Python3.8 from source
+
+After downloading and extracting the [last edition of
+python 3.8](https://www.python.org/downloads/release/python-386/),
+I followed the [first link of the previous section](https://stackoverflow.com/a/59472813).
+Modified the `Modules/Setup` file as it is written and started the
+configure - make - make test - make altinstall loop, but that was not enough.
+However, make sure you use `make **alt**install`, as that will leave your OS's
+python version intact.
+
+After these steps, `make test` failed as subprocess tests with empty environment
+did not run, but I did not found the origin of this issue. However, I found
+the original ssl issue report, and [in a reply](https://bugs.python.org/issue34028#msg358487)
+found [another setting](https://help.dreamhost.com/hc/en-us/articles/360001435926-Installing-OpenSSL-locally-under-your-username)
+which I did not tried before: setting  the `LDFLAGS` env variable with the
+path to my `openssl` directory as follows:
+`export LDFLAGS="-L/usr/local/openssl/lib -Wl,-rpath,/usr/local/openssl/lib"`
+
+## Enjoy
+
+After setting this, the subprocess error did not appeared again,so I could
+continue with the original guide, create a virtual environment and
+install Home Assistant. When started `hass`, it just hanged - but
+I did not worry, as this is written in the guide, so I assumed I'll
+see the `Starting Home Assistant` line in the logs. **Wrong**. It already 
+started up without printing anything. so I could delve into the possibilities
+of just a smart plug.
+
